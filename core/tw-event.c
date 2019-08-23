@@ -163,16 +163,6 @@ static inline void event_cancel(tw_event * event) {
             default:
                 tw_error(TW_LOC, "unknown fast local cancel owner %d", event->state.owner);
         }
-    } else if ((unsigned long)send_pe->id == dest_peid) {
-        /* Slower, but still a local cancel, so put into
-        * top of dest_pe->cancel_q for final deletion.
-        */
-        local_cancel(event->dest_lp->pe, event);
-        send_pe->stats.s_nsend_loc_remote--;
-
-        if(tw_gvt_inprogress(send_pe)) {
-            send_pe->trans_msg_ts = ROSS_MIN(send_pe->trans_msg_ts, event->recv_ts);
-        }
     } else {
         tw_error(TW_LOC, "Should be remote cancel!");
     }
