@@ -13,7 +13,7 @@ static inline void reset_bitfields(tw_event *revent)
     memset(&revent->cv, 0, sizeof(revent->cv));
 }
 
-/*
+/**
  * Get all events out of my event queue and spin them out into
  * the priority queue so they can be processed in time stamp
  * order.
@@ -66,7 +66,7 @@ static void tw_sched_event_q(tw_pe * me) {
     }
 }
 
-/*
+/**
  * OPT: need to link events into canq in reverse order so
  *      that when we rollback the 1st event, we should not
  *  need to do any further rollbacks.
@@ -246,7 +246,7 @@ static void tw_sched_batch(tw_pe * me) {
         cev->state.owner = TW_kp_pevent_q;
         tw_eventq_unshift(&ckp->pevent_q, cev);
 
-        if(g_st_rt_sampling && 
+        if(g_st_rt_sampling &&
                 tw_clock_read() - g_st_rt_samp_start_cycles > g_st_rt_interval)
         {
             tw_clock current_rt = tw_clock_read();
@@ -387,7 +387,7 @@ static void tw_sched_batch_realtime(tw_pe * me) {
 	    break; // leave the batch function
 	  }
 
-        if(g_st_rt_sampling && 
+        if(g_st_rt_sampling &&
                 tw_clock_read() - g_st_rt_samp_start_cycles > g_st_rt_interval)
         {
             tw_clock current_rt = tw_clock_read();
@@ -491,7 +491,7 @@ void tw_scheduler_sequential(tw_pe * me) {
         clp->lp_stats->s_nevent_processed++;
         tw_event_free(me, cev);
 
-        if(g_st_rt_sampling && 
+        if(g_st_rt_sampling &&
                 tw_clock_read() - g_st_rt_samp_start_cycles > g_st_rt_interval)
         {
             tw_clock current_rt = tw_clock_read();
@@ -600,7 +600,7 @@ void tw_scheduler_conservative(tw_pe * me) {
 
             tw_event_free(me, cev);
 
-            if(g_st_rt_sampling && 
+            if(g_st_rt_sampling &&
                     tw_clock_read() - g_st_rt_samp_start_cycles > g_st_rt_interval)
             {
                 tw_clock current_rt = tw_clock_read();
@@ -797,4 +797,3 @@ void tw_scheduler_optimistic_debug(tw_pe * me) {
 
     (*me->type.final)(me);
 }
-
