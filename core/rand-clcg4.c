@@ -317,18 +317,26 @@ tw_rand_initial_seed(tw_rng_stream * g, tw_lpid id)
 }
 
 void
-tw_rand_init_streams(tw_lp * lp, unsigned int nstreams)
+tw_rand_init_streams(tw_lp * lp, unsigned int nstreams, unsigned int n_core_streams)
 {
 	unsigned int i;
+  unsigned int j;
 
 	if(nstreams > g_tw_nRNG_per_lp)
             tw_error(TW_LOC, "LP %lu asked for more RNG streams (%d) than the global maximum (g_tw_nRNG_per_lp:%d)\n", lp->gid, nstreams, g_tw_nRNG_per_lp);
 
-        lp->rng = (tw_rng_stream *) tw_calloc(TW_LOC, "LP RNG Streams", sizeof(*lp->rng), nstreams);
+  if(n_core_streams > g_tw_nRNG_core_per_lp)
+            tw_error(TW_LOC, "LP %lu asked for more RNG streams (%d) than the global maximum for core (g_tw_nRNG_core_per_lp:%d)\n", lp->gid, n_core_streams, g_tw_nRNG_core_per_lp);
+
+  lp->rng = (tw_rng_stream *) tw_calloc(TW_LOC, "LP RNG Streams", sizeof(*lp->rng), nstreams);
+  lp->core_rng = (tw_rng_stream *) tw_calloc(TW_LOC, "LP Core RNG Streams", sizeof(*lp->core_rng), n_core_streams);
 
 	for(i = 0; i < nstreams; i++) {
-            tw_rand_initial_seed(&lp->rng[i], (lp->gid * g_tw_nRNG_per_lp) + i);
-        }
+            tw_rand_initial_seed(&lp->rng[i], (lp->gid * (g_tw_nRNG_per_lp + g_tw_nRNG_core_per_lp) + i));
+  }
+  for(j = 0; j < n_core_streams; j++) {
+            tw_rand_initial_seed(&lp->core_rng[j], (lp->gid * (g_tw_nRNG_per_lp + g_tw_nRNG_core_per_lp) + i + j));
+  }
 }
 
 /*
