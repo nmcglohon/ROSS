@@ -210,6 +210,12 @@ void map_round_robin(void) {
     }
 }
 
+void tw_set_model_rngs(unsigned int n_model_streams)
+{
+    g_tw_nRNG_per_lp_model = n_model_streams;
+    g_tw_nRNG_per_lp += n_model_streams;
+}
+
 /**
  * IMPORTANT: This function sets the value for g_tw_nlp which is a rather
  * important global variable.  It is also set in (very few) other places,
@@ -274,6 +280,13 @@ void tw_define_lps(tw_lpid nlp, size_t msg_sz) {
         }
     }
 
+    // populate model level RNG stream pointer array
+    for(i = 0; i < g_tw_nlp + g_st_analysis_nlp; i++) {
+        g_tw_lp[i]->model_rng = tw_calloc(TW_LOC, "LP Model RNG Stream Pointers", sizeof(tw_rng_stream*), g_tw_nRNG_per_lp_model);
+        for(int j = 0; j < g_tw_nRNG_per_lp_model; j++) {
+            g_tw_lp[i]->model_rng[j] = &(g_tw_lp[i]->rng[j]);
+        }
+    }
 }
 
 static void late_sanity_check(void) {

@@ -23,6 +23,7 @@ extern tw_lp **g_tw_lp;
 extern tw_kp **g_tw_kp;
 extern int      g_tw_fossil_attempts;
 extern unsigned int g_tw_nRNG_per_lp;
+extern unsigned int    g_tw_nRNG_per_lp_model;
 extern tw_lpid g_tw_rng_default;
 extern tw_seed g_tw_rng_seed;
 extern unsigned int g_tw_mblock;
