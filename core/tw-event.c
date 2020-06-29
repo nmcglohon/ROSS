@@ -229,6 +229,7 @@ jump_over_rc_event_handler:
     while (e) {
         tw_event *n = e->cause_next;
         e->cause_next = NULL;
+        tw_rand_reverse_unif(e->src_lp->core_rng); //undo the tiebreaker rng advanced by this LP for the subsequent event
 
         event_cancel(e);
         e = n;

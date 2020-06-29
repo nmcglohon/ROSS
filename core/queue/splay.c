@@ -347,6 +347,12 @@ tw_pq_minimum(splay_tree *pq)
 	return ((pq->least ? pq->least->recv_ts : TW_STIME_MAX));
 }
 
+tw_eventid
+tw_pq_minimum_get_event_id(splay_tree *pq)
+{
+	return((pq->least ? pq->least->event_id : UINT_MAX));
+}
+
 unsigned int
 tw_pq_get_size(splay_tree *st)
 {

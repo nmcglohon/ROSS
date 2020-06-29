@@ -177,7 +177,7 @@ static void tw_sched_batch(tw_pe * me) {
             break;
         }
         me->stats.s_pq += tw_clock_read() - start;
-        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0 && cev->event_id == tw_pq_minimum_get_event_id(me->pq)) {
             me->stats.s_pe_event_ties++;
         }
 
@@ -311,7 +311,7 @@ static void tw_sched_batch_realtime(tw_pe * me) {
           break; // leave the batch function
         }
         me->stats.s_pq += tw_clock_read() - start;
-        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0 && cev->event_id == tw_pq_minimum_get_event_id(me->pq)) {
             me->stats.s_pe_event_ties++;
         }
 
@@ -463,7 +463,7 @@ void tw_scheduler_sequential(tw_pe * me) {
         me->cur_event = cev;
         ckp->last_time = cev->recv_ts;
 
-        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0 && cev->event_id == tw_pq_minimum_get_event_id(me->pq)) {
             me->stats.s_pe_event_ties++;
         }
 
@@ -563,7 +563,7 @@ void tw_scheduler_conservative(tw_pe * me) {
                 break;
             }
             me->stats.s_pq += tw_clock_read() - start;
-            if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+            if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0 && cev->event_id == tw_pq_minimum_get_event_id(me->pq)) {
                 me->stats.s_pe_event_ties++;
             }
 

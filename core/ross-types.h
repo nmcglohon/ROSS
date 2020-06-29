@@ -263,6 +263,8 @@ struct tw_event {
 
     tw_eventid   event_id;          /**< @brief Unique id assigned by src_lp->pe if remote. */
 
+    tw_stime     event_tiebreaker;  /**< @brief Random value used to deterministically resolve event ties */
+
     /** Status of the event's queue location(s). */
     struct {
         unsigned char owner;        /**< @brief Owner of the next/prev pointers; see tw_event_owner */
