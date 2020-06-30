@@ -93,7 +93,7 @@ static unsigned int tw_pq_compare_less_than( tw_event *n, tw_event *e )
     }
 }
 
-static unsigned int tw_pq_compare_less_than2(tw_event *n, tw_event *e)
+static unsigned int tw_pq_compare_less_than_rand(tw_event *n, tw_event *e)
 {
 	if (TW_STIME_CMP(KEY(n), KEY(e)) < 0)
 		return 1;
@@ -232,7 +232,11 @@ tw_pq_enqueue(splay_tree *st, tw_event * e)
 		for (;;)
 		{
 //			if (KEY(n) <= KEY(e))
-		    if( tw_pq_compare_less_than2( n, e ) )
+#ifdef USE_RAND_TIEBREAKER
+		    if( tw_pq_compare_less_than_rand( n, e ) )
+#else
+			if (tw_pq_compare_less_than( n, e) )
+#endif
 			{
 				if (RIGHT(n))
 					n = RIGHT(n);

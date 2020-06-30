@@ -186,6 +186,7 @@ avlInsert(AvlTree *t, tw_event *key)
     if (TW_STIME_CMP(key->recv_ts, (*t)->key->recv_ts) == 0) {
         // We have a timestamp tie, check the event ID
         if (key->event_id == (*t)->key->event_id) {
+#ifdef USE_RAND_TIEBREAKER
             //event IDs are the same, then we use the tiebreaker
             if (key->event_tiebreaker == (*t)->key->event_tiebreaker)
                 tw_error(TW_LOC,"Identical events - should be impossible");
@@ -194,6 +195,14 @@ avlInsert(AvlTree *t, tw_event *key)
                 avlRebalance(t);
                 return;
             }
+#else
+            if (key->send_pe == (*t)->key->send_pe) {
+                // This shouldn't happen but we'll allow it
+                tw_printf(TW_LOC, "The events are identical!!!\n");
+            }
+            avlInsert(&(*t)->child[key->send_pe > (*t)->key->send_pe], key);
+            avlRebalance(t);
+#endif
         }
         else {
             // Event IDs are different
@@ -278,8 +287,14 @@ avlDelete(AvlTree *t, tw_event *key)
                 }
             }
             else {
+#ifdef USE_RAND_TIEBREAKER
                 // Timestamp and event IDs are the same, but different send_pe
                 target = avlDelete(&(*t)->child[key->event_tiebreaker > (*t)->key->event_tiebreaker], key);
+#else
+                // Timestamp and event IDs are the same, but different send_pe
+                target = avlDelete(&(*t)->child[key->send_pe > (*t)->key->send_pe], key);
+#endif
+
             }
         }
         else {
