@@ -93,6 +93,30 @@ static unsigned int tw_pq_compare_less_than( tw_event *n, tw_event *e )
     }
 }
 
+static unsigned int tw_pq_compare_less_than2(tw_event *n, tw_event *e)
+{
+	if (TW_STIME_CMP(KEY(n), KEY(e)) < 0)
+		return 1;
+    else if (TW_STIME_CMP(KEY(n), KEY(e)) > 0)
+		return 0;
+    else
+    {
+		if(n->event_id < e->event_id)
+			return 1;
+		else if(n->event_id > e->event_id)
+			return 0;
+		else
+		{
+			if (n->event_tiebreaker < e->event_tiebreaker)
+				return 1;
+			else if (n->event_tiebreaker > e->event_tiebreaker)
+				return 0;
+			else
+				tw_error(TW_LOC, "Found tie events at ts %lf with identical tiebreakers (incredibly unlikely). Need to implement second mutually independent random number");
+		}
+    }
+}
+
 static void
 splay(tw_event * node)
 {
@@ -208,7 +232,7 @@ tw_pq_enqueue(splay_tree *st, tw_event * e)
 		for (;;)
 		{
 //			if (KEY(n) <= KEY(e))
-		    if( tw_pq_compare_less_than( n, e ) )
+		    if( tw_pq_compare_less_than2( n, e ) )
 			{
 				if (RIGHT(n))
 					n = RIGHT(n);
