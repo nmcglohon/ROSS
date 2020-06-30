@@ -109,6 +109,16 @@ tw_eventq_push_list(tw_eventq * q, tw_event * h, tw_event * t, long cnt)
         if (e == h) {
           break;
         }
+
+        // check for event tie with previous event here (no need to check if prev == NULL as we break from this loop if e is the head of the list)
+        // event ties should be when timestamp AND destination LP are the same
+        // because this queue is ordered based on TS, this will find any pairwise event ties
+        // if three events are tied, then this will result in counting two ties (because there are n-1 pairwise ties in an n-way tie)
+        if (e->recv_ts == e->prev->recv_ts) {
+          if (e->dest_lp->gid == e->prev->dest_lp->gid)
+            pe->stats.s_pe_event_ties++;
+        }
+
         e = e->prev;
     }
 
