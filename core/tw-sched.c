@@ -760,6 +760,12 @@ void tw_scheduler_optimistic_debug(tw_pe * me) {
 
         ckp->s_nevent_processed++;
 
+        // this form of tie counting is safe because fossil collection 
+        // where tie counting usually happens is never called for optimistic debug
+        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+            me->stats.s_pe_event_ties++;
+        }
+
         /* Thread current event into processed queue of kp */
         cev->state.owner = TW_kp_pevent_q;
         tw_eventq_unshift(&ckp->pevent_q, cev);
