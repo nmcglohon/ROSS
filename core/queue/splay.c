@@ -101,18 +101,28 @@ static unsigned int tw_pq_compare_less_than_rand(tw_event *n, tw_event *e)
 		return 0;
     else
     {
-		if(n->event_id < e->event_id)
-			return 1;
-		else if(n->event_id > e->event_id)
-			return 0;
-		else
-		{
+		if (n->send_pe == e->send_pe) {
+			if (n->event_id < e->event_id)
+				return 1;
+			else if (n->event_id > e->event_id)
+				return 0;
+			else
+				tw_error(TW_LOC, "Identical event IDs from same PE found in splay tree, impossible\n");
+		}
+		else {
 			if (n->event_tiebreaker < e->event_tiebreaker)
 				return 1;
 			else if (n->event_tiebreaker > e->event_tiebreaker)
 				return 0;
-			else
-				tw_error(TW_LOC, "Found tie events at ts %lf with identical tiebreakers (incredibly unlikely). Need to implement second mutually independent random number");
+			else {
+				if (n->event_id < e->event_id)
+					return 1;
+				else if (n->event_id > e->event_id)
+					return 0;
+				else {
+					tw_error(TW_LOC,"Identical events found - impossible\n");
+				}
+			}
 		}
     }
 }

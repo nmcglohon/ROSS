@@ -81,6 +81,7 @@ tw_event_new(tw_lpid dest_gid, tw_stime offset_ts, tw_lp * sender)
     }
   }
 
+  e->send_pe = sender->pe->id;
   e->dest_lp = (tw_lp *) dest_gid;
   e->dest_lpid = dest_gid;
   e->src_lp = sender;
