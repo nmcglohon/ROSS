@@ -450,6 +450,10 @@ void tw_scheduler_sequential(tw_pe * me) {
     tw_wall_now(&me->start_time);
     me->stats.s_total = tw_clock_read();
 
+    //used for tie counting
+    tw_lpid last_destlp_gid = -1;
+    tw_stime last_recv_ts = TW_STIME_MAX;
+
     while ((cev = tw_pq_dequeue(me->pq))) {
         tw_lp *clp = cev->dest_lp;
         tw_kp *ckp = clp->kp;
@@ -461,6 +465,14 @@ void tw_scheduler_sequential(tw_pe * me) {
         if(TW_STIME_DBL(gvt)/g_tw_ts_end > percent_complete && (g_tw_mynode == g_tw_masternode)) {
             gvt_print(gvt);
         }
+
+        // This is based on the legacy event tie counter which was changed and moved into fossil collection
+        // where tie counting usually happens is never called for sequential TODO: reconsider
+        if(TW_STIME_CMP(cev->recv_ts, last_recv_ts) == 0 && cev->dest_lp->gid == last_destlp_gid) {
+            me->stats.s_pe_event_ties++;
+        }
+        last_destlp_gid = cev->dest_lp->gid; //tie counting helper values
+        last_recv_ts = cev->recv_ts; //tie counting helper values
 
         reset_bitfields(cev);
         clp->critical_path = ROSS_MAX(clp->critical_path, cev->critical_path)+1;
@@ -742,6 +754,10 @@ void tw_scheduler_optimistic_debug(tw_pe * me) {
 
     tw_wall_now(&me->start_time);
 
+    //used for tie counting
+    tw_lpid last_destlp_gid = -1;
+    tw_stime last_recv_ts = TW_STIME_MAX;
+
     while ((cev = tw_pq_dequeue(me->pq))) {
         tw_lp *clp = cev->dest_lp;
         tw_kp *ckp = clp->kp;
@@ -760,11 +776,14 @@ void tw_scheduler_optimistic_debug(tw_pe * me) {
 
         ckp->s_nevent_processed++;
 
-        // this form of tie counting is safe because fossil collection 
+        // This is based on the legacy event tie counter which was changed and moved into fossil collection
         // where tie counting usually happens is never called for optimistic debug
-        if(TW_STIME_CMP(cev->recv_ts, tw_pq_minimum(me->pq)) == 0) {
+        // probably won't line up with optimistic's event tie counter TODO: reconsider
+        if(TW_STIME_CMP(cev->recv_ts, last_recv_ts) == 0 && cev->dest_lp->gid == last_destlp_gid) {
             me->stats.s_pe_event_ties++;
         }
+        last_destlp_gid = cev->dest_lp->gid; //tie counting helper values
+        last_recv_ts = cev->recv_ts; //tie counting helper valu
 
         /* Thread current event into processed queue of kp */
         cev->state.owner = TW_kp_pevent_q;
