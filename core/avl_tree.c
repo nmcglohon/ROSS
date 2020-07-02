@@ -186,23 +186,13 @@ avlInsert(AvlTree *t, tw_event *key)
     if (TW_STIME_CMP(key->recv_ts, (*t)->key->recv_ts) == 0) {
         // We have a timestamp tie, check the event ID
         if (key->event_id == (*t)->key->event_id) {
-#ifdef USE_RAND_TIEBREAKER
-            //event IDs are the same, then we use the tiebreaker
-            if (key->event_tiebreaker == (*t)->key->event_tiebreaker)
-                tw_error(TW_LOC,"Identical events - should be impossible");
-            else {
-                avlInsert(&(*t)->child[key->event_tiebreaker > (*t)->key->event_tiebreaker], key);
-                avlRebalance(t);
-                return;
-            }
-#else
+            // We have a event ID tie, check the send_pe
             if (key->send_pe == (*t)->key->send_pe) {
                 // This shouldn't happen but we'll allow it
                 tw_printf(TW_LOC, "The events are identical!!!\n");
             }
             avlInsert(&(*t)->child[key->send_pe > (*t)->key->send_pe], key);
             avlRebalance(t);
-#endif
         }
         else {
             // Event IDs are different
@@ -273,6 +263,12 @@ avlDelete(AvlTree *t, tw_event *key)
             // We have a event ID tie, check the send_pe
             if (key->send_pe == (*t)->key->send_pe) {
                 // This is actually the one we want to delete
+#ifdef USE_RAND_TIEBREAKER
+                // Or is it?
+                if (key->event_tiebreaker != (*t)->key->event_tiebreaker)
+                    tw_error(TW_LOC,"We were about to delete an event that didn't exactly match the target");
+#endif
+
                 target = (*t)->key;
                 /* do we have a right child? */
                 if ((*t)->child[1] != AVL_EMPTY) {
@@ -287,14 +283,8 @@ avlDelete(AvlTree *t, tw_event *key)
                 }
             }
             else {
-#ifdef USE_RAND_TIEBREAKER
-                // Timestamp and event IDs are the same, but different send_pe
-                target = avlDelete(&(*t)->child[key->event_tiebreaker > (*t)->key->event_tiebreaker], key);
-#else
                 // Timestamp and event IDs are the same, but different send_pe
                 target = avlDelete(&(*t)->child[key->send_pe > (*t)->key->send_pe], key);
-#endif
-
             }
         }
         else {
