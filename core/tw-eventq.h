@@ -110,14 +110,14 @@ tw_eventq_push_list(tw_eventq * q, tw_event * h, tw_event * t, long cnt)
           break;
         }
 
-        // check for event tie with previous event here (no need to check if prev == NULL as we break from this loop if e is the head of the list)
-        // event ties should be when timestamp AND destination LP are the same
-        // because this queue is ordered based on TS, this will find any pairwise event ties
-        // if three events are tied, then this will result in counting two ties (because there are n-1 pairwise ties in an n-way tie)
-        if (e->recv_ts == e->prev->recv_ts) {
-          if (e->dest_lp->gid == e->prev->dest_lp->gid)
-            pe->stats.s_pe_event_ties++;
-        }
+        // // check for event tie with previous event here (no need to check if prev == NULL as we break from this loop if e is the head of the list)
+        // // event ties should be when timestamp AND destination LP are the same
+        // // because this queue is ordered based on TS, this will find any pairwise event ties
+        // // if three events are tied, then this will result in counting two ties (because there are n-1 pairwise ties in an n-way tie)
+        // if (e->recv_ts == e->prev->recv_ts) {
+        //   if (e->dest_lp->gid == e->prev->dest_lp->gid)
+        //     pe->stats.s_pe_event_ties++;
+        // }
 
         e = e->prev;
     }
@@ -128,18 +128,19 @@ tw_eventq_push_list(tw_eventq * q, tw_event * h, tw_event * t, long cnt)
 static inline void
 tw_eventq_fossil_collect(tw_eventq *q, tw_pe *pe)
 {
-  tw_stime gvt = pe->GVT;
-
+  // tw_stime gvt = pe->GVT;
   tw_event *h = q->head;
   tw_event *t = q->tail;
 
   int	 cnt;
 
   /* Nothing to collect from this event list? */
-  if (!t || (TW_STIME_CMP(t->recv_ts, gvt) >= 0))
+  // if (!t || (TW_STIME_CMP(t->recv_ts, gvt) >= 0))
+  if (!t || (tw_event_sig_compare(t->sig, pe->GVT_sig) >= 0))
     return;
 
-  if (TW_STIME_CMP(h->recv_ts, gvt) < 0)
+  // if (TW_STIME_CMP(h->recv_ts, gvt) < 0)
+  if (tw_event_sig_compare(h->sig, pe->GVT_sig) < 0)
     {
       /* Everything in the queue can be collected */
       tw_eventq_push_list(&pe->free_q, h, t, q->size);
@@ -155,7 +156,8 @@ tw_eventq_fossil_collect(tw_eventq *q, tw_pe *pe)
     tw_event *n;
 
     /* Search the leading part of the list... */
-    for (h = t->prev, cnt = 1; h && (TW_STIME_CMP(h->recv_ts, gvt) < 0); cnt++)
+    // for (h = t->prev, cnt = 1; h && (TW_STIME_CMP(h->recv_ts, gvt) < 0); cnt++)
+    for (h = t->prev, cnt = 1; h && (tw_event_sig_compare(h->sig, pe->GVT_sig) < 0); cnt++)
       h = h->prev;
 
     /* t isn't eligible for collection; its the new head */

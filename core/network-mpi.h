@@ -96,6 +96,13 @@ extern void tw_net_barrier(void);
 extern tw_stime tw_net_minimum(void);
 
 /**
+ * @brief Obtain the event signature for the lowest ordered event inside the network buffers.
+ *
+ * @return minimum event signature for this PE's network buffers
+ */
+extern tw_event_sig tw_net_minimum_sig(void);
+
+/**
  * @brief Function to reduce all the statistics for output.
  * @attention Notice that the MPI_Reduce "count" parameter is greater than one.
  * We are reducing on multiple variables *simultaneously* so if you change

@@ -101,15 +101,15 @@ static unsigned int tw_pq_compare_less_than_rand(tw_event *n, tw_event *e)
 		return 0;
     else
     {
-		if (n->send_pe == e->send_pe) {
-			if (n->event_id < e->event_id)
-				return 1;
-			else if (n->event_id > e->event_id)
-				return 0;
-			else
-				tw_error(TW_LOC, "Identical event IDs from same PE found in splay tree, impossible\n");
-		}
-		else {
+		// if (n->send_pe == e->send_pe) { //faster but commenting out in case it affects determinism
+		// 	if (n->event_id < e->event_id)
+		// 		return 1;
+		// 	else if (n->event_id > e->event_id)
+		// 		return 0;
+		// 	else
+		// 		tw_error(TW_LOC, "Identical event IDs from same PE found in splay tree, impossible\n");
+		// }
+		// else {
 			if (n->event_tiebreaker < e->event_tiebreaker)
 				return 1;
 			else if (n->event_tiebreaker > e->event_tiebreaker)
@@ -123,7 +123,7 @@ static unsigned int tw_pq_compare_less_than_rand(tw_event *n, tw_event *e)
 					tw_error(TW_LOC,"Identical events found - impossible\n");
 				}
 			}
-		}
+		// }
     }
 }
 
@@ -383,6 +383,12 @@ tw_stime
 tw_pq_minimum(splay_tree *pq)
 {
 	return ((pq->least ? pq->least->recv_ts : TW_STIME_MAX));
+}
+
+tw_event_sig
+tw_pq_minimum_sig(splay_tree *pq)
+{
+	return ((pq->least ? pq->least->sig : (tw_event_sig){TW_STIME_MAX,TW_STIME_MAX}));
 }
 
 tw_eventid

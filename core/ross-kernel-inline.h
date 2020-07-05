@@ -79,7 +79,13 @@ static inline void *
 static inline tw_stime
      tw_now(tw_lp const * lp)
 {
-  return (lp->kp->last_time);
+  return (lp->kp->last_sig.recv_ts);
+}
+
+static inline tw_event_sig
+     tw_now_sig(tw_lp const *lp)
+{
+  return (lp->kp->last_sig);
 }
 
 #endif

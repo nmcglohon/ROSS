@@ -92,6 +92,7 @@ tw_event_new(tw_lpid dest_gid, tw_stime offset_ts, tw_lp * sender)
 #ifdef USE_RAND_TIEBREAKER
   e->event_tiebreaker = tw_rand_unif(sender->core_rng); //create a random number used to deterministically break event ties, this is rolled back in tw_event_rollback() during the sender LP cancel loop
 #endif
+  e->sig = (tw_event_sig){e->recv_ts, e->event_tiebreaker};
 
   tw_free_output_messages(e, 0);
 

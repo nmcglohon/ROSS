@@ -6,6 +6,28 @@ static inline void link_causality (tw_event *nev, tw_event *cev) {
     cev->caused_by_me = nev;
 }
 
+//compares the 'new' event to the signature. If the new event is to occur
+//after the signature, return 1
+//before the signature, return -1
+//at the signature - undefined, error, TODO: maybe should be zero for identically matching the signature
+int tw_event_sig_compare(tw_event_sig e_sig, tw_event_sig n_sig) 
+{
+    int time_compare = TW_STIME_CMP(e_sig.recv_ts, n_sig.recv_ts);
+    if (time_compare != 0)
+        return time_compare;
+    else
+    {
+        if (e_sig.event_tiebreaker < n_sig.event_tiebreaker)
+            return -1;
+        else if (e_sig.event_tiebreaker > n_sig.event_tiebreaker)
+            return 1;
+        else {
+                // tw_error(TW_LOC,"Identical events (matching tiebreaker) found - address\n");
+                return 0;
+        }
+    }
+}
+
 void tw_event_send(tw_event * event) {
     tw_lp     *src_lp = event->src_lp;
     tw_pe     *send_pe = src_lp->pe;
@@ -58,7 +80,8 @@ void tw_event_send(tw_event * event) {
         event->dest_lp = tw_getlocal_lp((tw_lpid) event->dest_lp);
         dest_pe = event->dest_lp->pe;
 
-        if (send_pe == dest_pe && TW_STIME_CMP(event->dest_lp->kp->last_time, recv_ts) <= 0) {
+        if (send_pe == dest_pe && tw_event_sig_compare(event->dest_lp->kp->last_sig, event->sig) <= 0) {
+        // if (send_pe == dest_pe && TW_STIME_CMP(event->dest_lp->kp->last_time, recv_ts) <= 0) {
             /* Fast case, we are sending to our own PE and there is
             * no rollback caused by this send.  We cannot have any
             * transient messages on local sends so we can return.
@@ -93,7 +116,8 @@ void tw_event_send(tw_event * event) {
     }
 
     if(tw_gvt_inprogress(send_pe)) {
-        send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, recv_ts) < 0) ? send_pe->trans_msg_ts : recv_ts;
+        // send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, recv_ts) < 0) ? send_pe->trans_msg_ts : recv_ts;
+        send_pe->trans_msg_sig = (tw_event_sig_compare(send_pe->trans_msg_sig, event->sig) < 0) ? send_pe->trans_msg_sig : event->sig;
     }
 }
 
@@ -123,7 +147,8 @@ static inline void event_cancel(tw_event * event) {
         //event->src_lp->lp_stats->s_nsend_net_remote--;
 
         if(tw_gvt_inprogress(send_pe)) {
-            send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+            // send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+            send_pe->trans_msg_sig = (tw_event_sig_compare(send_pe->trans_msg_sig, event->sig) < 0) ? send_pe->trans_msg_sig : event->sig;
         }
 
         return;
@@ -156,7 +181,8 @@ static inline void event_cancel(tw_event * event) {
                 local_cancel(send_pe, event);
 
                 if(tw_gvt_inprogress(send_pe)) {
-                    send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+                    // send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+                    send_pe->trans_msg_sig = (tw_event_sig_compare(send_pe->trans_msg_sig, event->sig) < 0) ? send_pe->trans_msg_sig : event->sig;
                 }
                 break;
 
@@ -171,7 +197,8 @@ static inline void event_cancel(tw_event * event) {
         send_pe->stats.s_nsend_loc_remote--;
 
         if(tw_gvt_inprogress(send_pe)) {
-            send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+            // send_pe->trans_msg_ts = (TW_STIME_CMP(send_pe->trans_msg_ts, event->recv_ts) < 0) ? send_pe->trans_msg_ts : event->recv_ts;
+            send_pe->trans_msg_sig = (tw_event_sig_compare(send_pe->trans_msg_sig, event->sig) < 0) ? send_pe->trans_msg_sig : event->sig;
         }
     } else {
         tw_error(TW_LOC, "Should be remote cancel!");
@@ -185,17 +212,20 @@ void tw_event_rollback(tw_event * event) {
     tw_free_output_messages(event, 0);
 
     dest_lp->pe->cur_event = event;
-    dest_lp->kp->last_time = event->recv_ts;
+    // dest_lp->kp->last_time = event->recv_ts;
+    dest_lp->kp->last_sig = event->sig;
 
     if( dest_lp->suspend_flag &&
 	dest_lp->suspend_event == event &&
 	// Must test time stamp since events are reused once GVT sweeps by
-	TW_STIME_CMP(dest_lp->suspend_time, event->recv_ts) == 0)
+    tw_event_sig_compare(dest_lp->suspend_sig, event->sig) == 0)
+	// TW_STIME_CMP(dest_lp->suspend_time, event->recv_ts) == 0)
       {
 	// unsuspend the LP
 	dest_lp->suspend_flag = 0;
 	dest_lp->suspend_event = NULL;
 	dest_lp->suspend_time = TW_STIME_CRT(0.0);
+    dest_lp->suspend_sig = (tw_event_sig){0,0};
 	dest_lp->suspend_error_number = 0;
 
 	if( dest_lp->suspend_do_orig_event_rc == 0 )

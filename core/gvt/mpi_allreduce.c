@@ -69,8 +69,9 @@ tw_gvt_stats(FILE * f)
 void
 tw_gvt_step1(tw_pe *me)
 {
+	// printf("%d\n",g_tw_max_opt_lookahead);
 	if(me->gvt_status == TW_GVT_COMPUTE ||
-           (++gvt_cnt < g_tw_gvt_interval && (TW_STIME_DBL(tw_pq_minimum(me->pq)) - TW_STIME_DBL(me->GVT) < g_tw_max_opt_lookahead)))
+           (++gvt_cnt < g_tw_gvt_interval && (TW_STIME_DBL(tw_pq_minimum_sig(me->pq).recv_ts) - TW_STIME_DBL(me->GVT_sig.recv_ts) < g_tw_max_opt_lookahead)))
 		return;
 
 	me->gvt_status = TW_GVT_COMPUTE;
@@ -83,7 +84,7 @@ tw_gvt_step1_realtime(tw_pe *me)
 
   if( (me->gvt_status == TW_GVT_COMPUTE) ||
       ( ((current_rt = tw_clock_read()) - g_tw_gvt_interval_start_cycles < g_tw_gvt_realtime_interval)
-          && (TW_STIME_DBL(tw_pq_minimum(me->pq)) - TW_STIME_DBL(me->GVT) < g_tw_max_opt_lookahead)))
+          && (TW_STIME_DBL(tw_pq_minimum_sig(me->pq).recv_ts) - TW_STIME_DBL(me->GVT_sig.recv_ts) < g_tw_max_opt_lookahead)))
     {
       /* if( me->id == 0 ) */
       /* 	{ */
@@ -105,11 +106,15 @@ tw_gvt_step2(tw_pe *me)
 	long long local_white = 0;
 	long long total_white = 0;
 
-	tw_stime pq_min = TW_STIME_MAX;
-	tw_stime net_min = TW_STIME_MAX;
+	// tw_stime pq_min = TW_STIME_MAX;
+	// tw_stime net_min = TW_STIME_MAX;
+	tw_event_sig pq_min_sig = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
+	tw_event_sig net_min_sig = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
 
-	tw_stime lvt;
-	tw_stime gvt;
+	// tw_stime lvt;
+	// tw_stime gvt;
+	tw_event_sig lvt_sig;
+	tw_event_sig gvt_sig;
 
     tw_clock net_start;
 	tw_clock start = tw_clock_read();
@@ -138,32 +143,57 @@ tw_gvt_step2(tw_pe *me)
 	      break;
 	  }
 
-	pq_min = tw_pq_minimum(me->pq);
-	net_min = tw_net_minimum();
+	// pq_min = tw_pq_minimum(me->pq);
+	pq_min_sig = tw_pq_minimum_sig(me->pq);
+	// net_min = tw_net_minimum();
+	net_min_sig = tw_net_minimum_sig();
 
-	lvt = me->trans_msg_ts;
-	if(TW_STIME_CMP(lvt, pq_min) > 0)
-	  lvt = pq_min;
-	if(TW_STIME_CMP(lvt, net_min) > 0)
-		lvt = net_min;
+	// lvt = me->trans_msg_ts;
+	lvt_sig = me->trans_msg_sig;
+	// if(TW_STIME_CMP(lvt, pq_min) > 0)
+	if(tw_event_sig_compare(lvt_sig, pq_min_sig) > 0)
+	{
+	//   lvt = pq_min;
+	  lvt_sig = pq_min_sig;
+	}
+	// if(TW_STIME_CMP(lvt, net_min) > 0)
+	if(tw_event_sig_compare(lvt_sig, net_min_sig) > 0)
+	{
+		// lvt = net_min;
+		lvt_sig = net_min_sig;
+	}
+
+	// all_reduce_cnt++;
+
+	// if(MPI_Allreduce(
+	// 		&lvt,
+	// 		&gvt,
+	// 		1,
+	// 		MPI_TYPE_TW_STIME,
+	// 		MPI_MIN,
+	// 		MPI_COMM_ROSS) != MPI_SUCCESS)
+	// 		tw_error(TW_LOC, "MPI_Allreduce for GVT failed");
 
 	all_reduce_cnt++;
-
 	if(MPI_Allreduce(
-			&lvt,
-			&gvt,
-			1,
-			MPI_TYPE_TW_STIME,
-			MPI_MIN,
-			MPI_COMM_ROSS) != MPI_SUCCESS)
-			tw_error(TW_LOC, "MPI_Allreduce for GVT failed");
+		&lvt_sig,
+		&gvt_sig,
+		1,
+		MPI_TYPE_TW_STIME,
+		MPI_MIN,
+		MPI_COMM_ROSS) != MPI_SUCCESS)
+		tw_error(TW_LOC, "MPI_Allreduce for GVT event signatures failed");
 
-	if(TW_STIME_CMP(gvt, me->GVT_prev) < 0)
+	gvt_sig.event_tiebreaker = 0;
+
+	// if(TW_STIME_CMP(gvt, me->GVT_prev) < 0)
+	if(tw_event_sig_compare(gvt_sig, me->GVT_prev_sig) < 0)
 	{
 		g_tw_gvt_no_change = 0;
 	} else
 	{
-                gvt = me->GVT_prev;
+                // gvt = me->GVT_prev;
+				gvt_sig = me->GVT_prev_sig;
 		g_tw_gvt_no_change++;
 		if (g_tw_gvt_no_change >= g_tw_gvt_max_no_change) {
 			tw_error(
@@ -171,26 +201,30 @@ tw_gvt_step2(tw_pe *me)
 				"GVT computed %d times in a row"
 				" without changing: GVT = %14.14lf, PREV %14.14lf"
 				" -- GLOBAL SYNCH -- out of memory!",
-				g_tw_gvt_no_change, gvt, me->GVT_prev);
+				g_tw_gvt_no_change, gvt_sig.recv_ts, me->GVT_prev_sig.recv_ts);
 		}
 	}
 
-	if (TW_STIME_CMP(me->GVT, gvt) > 0)
+	// if (TW_STIME_CMP(me->GVT, gvt) > 0)
+	if (tw_event_sig_compare(me->GVT_sig, gvt_sig) > 0)
 	{
-		tw_error(TW_LOC, "PE %u GVT decreased %g -> %g",
-				me->id, me->GVT, gvt);
+		tw_error(TW_LOC, "PE %u GVT decreased %g  %g  -> %g  %g",
+				me->id, me->GVT_sig.recv_ts, me->GVT_sig.event_tiebreaker, gvt_sig.recv_ts, gvt_sig.event_tiebreaker);
 	}
 
-	if (TW_STIME_DBL(gvt) / g_tw_ts_end > percent_complete && (g_tw_mynode == g_tw_masternode))
+	if (TW_STIME_DBL(gvt_sig.recv_ts) / g_tw_ts_end > percent_complete && (g_tw_mynode == g_tw_masternode))
 	{
-		gvt_print(gvt);
+		gvt_print(gvt_sig.recv_ts);
 	}
 
 	me->s_nwhite_sent = 0;
 	me->s_nwhite_recv = 0;
-	me->trans_msg_ts = TW_STIME_MAX;
-	me->GVT_prev = TW_STIME_MAX; // me->GVT;
-	me->GVT = gvt;
+	// me->trans_msg_ts = TW_STIME_MAX;
+	me->trans_msg_sig = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
+	// me->GVT_prev = TW_STIME_MAX; // me->GVT;
+	me->GVT_prev_sig = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
+	// me->GVT = gvt;
+	me->GVT_sig = gvt_sig;
 	me->gvt_status = TW_GVT_NORMAL;
 
 	gvt_cnt = 0;
@@ -209,7 +243,7 @@ tw_gvt_step2(tw_pe *me)
 
     // do any necessary instrumentation calls
     if ((g_st_engine_stats == GVT_STATS || g_st_engine_stats == ALL_STATS) &&
-        g_tw_gvt_done % g_st_num_gvt == 0 && TW_STIME_DBL(gvt) <= g_tw_ts_end)
+        g_tw_gvt_done % g_st_num_gvt == 0 && TW_STIME_DBL(gvt_sig.recv_ts) <= g_tw_ts_end)
     {
 #ifdef USE_DAMARIS
         if (g_st_damaris_enabled)
