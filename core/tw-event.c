@@ -7,9 +7,9 @@ static inline void link_causality (tw_event *nev, tw_event *cev) {
 }
 
 //compares the 'new' event to the signature. If the new event is to occur
-//after the signature, return 1
-//before the signature, return -1
-//at the signature - undefined, error, TODO: maybe should be zero for identically matching the signature
+//n_sig later (larger) than e_sig signature, return -1
+//n_sig before (smaller) than e_sig signature, return 1
+//at the signature - return 0
 int tw_event_sig_compare(tw_event_sig e_sig, tw_event_sig n_sig) 
 {
     int time_compare = TW_STIME_CMP(e_sig.recv_ts, n_sig.recv_ts);
