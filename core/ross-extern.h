@@ -23,7 +23,7 @@ extern tw_lp **g_tw_lp;
 extern tw_kp **g_tw_kp;
 extern int      g_tw_fossil_attempts;
 extern unsigned int g_tw_nRNG_per_lp;
-extern unsigned int g_tw_nRNG_core_per_lp;
+extern unsigned int g_tw_nRNG_core_per_lp; //Separate ROSS engine-only use RNG streams
 extern tw_lpid g_tw_rng_default;
 extern tw_seed g_tw_rng_seed;
 extern unsigned int g_tw_mblock;
@@ -85,7 +85,9 @@ extern unsigned long long g_tw_clock_rate;
  */
 extern void tw_event_send(tw_event * event);
 extern void tw_event_rollback(tw_event * event);
+#ifdef USE_RAND_TIEBREAKER
 extern int tw_event_sig_compare(tw_event_sig e_sig, tw_event_sig n_sig);
+#endif
 
 /*
  * ross-inline.h
@@ -118,7 +120,9 @@ extern void     tw_kp_put_back_output_buffer(tw_out *out);
 
 extern void tw_kp_rollback_event(tw_event *event);
 extern void tw_kp_rollback_to(tw_kp * kp, tw_stime to);
+#ifdef USE_RAND_TIEBREAKER
 extern void tw_kp_rollback_to_sig(tw_kp * kp, tw_event_sig to_sig);
+#endif
 
 /*
  * tw-pe.c

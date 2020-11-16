@@ -128,19 +128,28 @@ tw_eventq_push_list(tw_eventq * q, tw_event * h, tw_event * t, long cnt)
 static inline void
 tw_eventq_fossil_collect(tw_eventq *q, tw_pe *pe)
 {
-  // tw_stime gvt = pe->GVT;
+#ifndef USE_RAND_TIEBREAKER
+  tw_stime gvt = pe->GVT;
+#endif
   tw_event *h = q->head;
   tw_event *t = q->tail;
 
   int	 cnt;
 
   /* Nothing to collect from this event list? */
-  // if (!t || (TW_STIME_CMP(t->recv_ts, gvt) >= 0))
+#ifdef USE_RAND_TIEBREAKER
   if (!t || (tw_event_sig_compare(t->sig, pe->GVT_sig) >= 0))
     return;
+#else
+  if (!t || (TW_STIME_CMP(t->recv_ts, gvt) >= 0))
+    return;
+#endif
 
-  // if (TW_STIME_CMP(h->recv_ts, gvt) < 0)
+#ifdef USE_RAND_TIEBREAKER
   if (tw_event_sig_compare(h->sig, pe->GVT_sig) < 0)
+#else
+  if (TW_STIME_CMP(h->recv_ts, gvt) < 0)
+#endif
     {
       /* Everything in the queue can be collected */
       tw_eventq_push_list(&pe->free_q, h, t, q->size);
@@ -156,8 +165,11 @@ tw_eventq_fossil_collect(tw_eventq *q, tw_pe *pe)
     tw_event *n;
 
     /* Search the leading part of the list... */
-    // for (h = t->prev, cnt = 1; h && (TW_STIME_CMP(h->recv_ts, gvt) < 0); cnt++)
+#ifdef USE_RAND_TIEBREAKER
     for (h = t->prev, cnt = 1; h && (tw_event_sig_compare(h->sig, pe->GVT_sig) < 0); cnt++)
+#else
+    for (h = t->prev, cnt = 1; h && (TW_STIME_CMP(h->recv_ts, gvt) < 0); cnt++)
+#endif
       h = h->prev;
 
     /* t isn't eligible for collection; its the new head */

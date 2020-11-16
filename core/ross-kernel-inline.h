@@ -76,6 +76,7 @@ static inline void *
   return lp->cur_state;
 }
 
+#ifdef USE_RAND_TIEBREAKER
 static inline tw_stime
      tw_now(tw_lp const * lp)
 {
@@ -87,5 +88,12 @@ static inline tw_event_sig
 {
   return (lp->kp->last_sig);
 }
+#else
+static inline tw_stime
+     tw_now(tw_lp const * lp)
+{
+  return (lp->kp->last_time);
+}
+#endif
 
 #endif

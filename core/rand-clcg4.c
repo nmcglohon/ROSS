@@ -331,11 +331,15 @@ tw_rand_init_streams(tw_lp * lp, unsigned int nstreams, unsigned int n_core_stre
   lp->rng = (tw_rng_stream *) tw_calloc(TW_LOC, "LP RNG Streams", sizeof(*lp->rng), nstreams);
   lp->core_rng = (tw_rng_stream *) tw_calloc(TW_LOC, "LP Core RNG Streams", sizeof(*lp->core_rng), n_core_streams);
 
+  unsigned int total_num_noncore_rngs = g_tw_nRNG_per_lp * (g_tw_nlp * tw_nnodes());
+
   for(i = 0; i < nstreams; i++) {
-            tw_rand_initial_seed(&lp->rng[i], (lp->gid * (g_tw_nRNG_per_lp + g_tw_nRNG_core_per_lp) + i));
+            tw_rand_initial_seed(&lp->rng[i], (lp->gid * g_tw_nRNG_per_lp) + i);
   }
+
+  //ROSS core rng streams should be seeded "after" lp rng streams so adjusting number of core streams doesn't change seeds of the lp rng streams
   for(j = 0; j < n_core_streams; j++) {
-            tw_rand_initial_seed(&lp->core_rng[j], (lp->gid * (g_tw_nRNG_per_lp + g_tw_nRNG_core_per_lp) + i + j));
+            tw_rand_initial_seed(&lp->core_rng[j], total_num_noncore_rngs + (lp->gid * (g_tw_nRNG_core_per_lp)) + j);
   }
 }
 

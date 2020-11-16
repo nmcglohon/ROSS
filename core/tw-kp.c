@@ -19,6 +19,42 @@ tw_kp_onpe(tw_kpid id, tw_pe * pe)
 #endif
 }
 
+
+#ifdef USE_RAND_TIEBREAKER
+void
+tw_kp_rollback_to_sig(tw_kp * kp, tw_event_sig to_sig)
+{
+    tw_event    *e;
+    tw_clock pq_start;
+
+    kp->s_rb_total++;
+    kp->kp_stats->s_rb_total++;
+
+    while (kp->pevent_q.size && tw_event_sig_compare(kp->pevent_q.head->sig, to_sig) >= 0)
+    {
+        e = tw_eventq_shift(&kp->pevent_q);
+
+        // rollback first
+        tw_event_rollback(e);
+
+        // reset kp pointers
+        if (kp->pevent_q.size == 0)
+        {
+            // kp->last_time = kp->pe->GVT;
+            kp->last_sig = kp->pe->GVT_sig;
+        } else
+        {
+            // kp->last_time = kp->pevent_q.head->recv_ts;
+            kp->last_sig = kp->pevent_q.head->sig;
+        }
+
+        // place event back into priority queue
+        pq_start = tw_clock_read();
+        tw_pq_enqueue(kp->pe->pq, e);
+        kp->pe->stats.s_pq += tw_clock_read() - pq_start;
+    }
+}
+#else
 void
 tw_kp_rollback_to(tw_kp * kp, tw_stime to)
 {
@@ -48,12 +84,10 @@ tw_kp_rollback_to(tw_kp * kp, tw_stime to)
                  */
                 if (kp->pevent_q.size == 0)
                 {
-                        // kp->last_time = kp->pe->GVT;
-                        kp->last_sig = kp->pe->GVT_sig;
+                        kp->last_time = kp->pe->GVT;
                 } else
                 {
-                        // kp->last_time = kp->pevent_q.head->recv_ts;
-                        kp->last_sig = kp->pevent_q.head->sig;
+                        kp->last_time = kp->pevent_q.head->recv_ts;
                 }
 
                 /*
@@ -64,40 +98,7 @@ tw_kp_rollback_to(tw_kp * kp, tw_stime to)
                 kp->pe->stats.s_pq += tw_clock_read() - pq_start;
         }
 }
-
-void
-tw_kp_rollback_to_sig(tw_kp * kp, tw_event_sig to_sig)
-{
-    tw_event    *e;
-    tw_clock pq_start;
-
-    kp->s_rb_total++;
-    kp->kp_stats->s_rb_total++;
-
-    while(kp->pevent_q.size && tw_event_sig_compare(kp->pevent_q.head->sig, to_sig) >= 0)
-    {
-        e = tw_eventq_shift(&kp->pevent_q);
-
-        // rollback first
-        tw_event_rollback(e);
-
-        // reset kp pointers
-        if (kp->pevent_q.size == 0)
-        {
-            // kp->last_time = kp->pe->GVT;
-            kp->last_sig = kp->pe->GVT_sig;
-        } else
-        {
-            // kp->last_time = kp->pevent_q.head->recv_ts;
-            kp->last_sig = kp->pevent_q.head->sig;
-        }
-
-        // place event back into priority queue
-        pq_start = tw_clock_read();
-        tw_pq_enqueue(kp->pe->pq, e);
-        kp->pe->stats.s_pq += tw_clock_read() - pq_start;
-    }
-}
+#endif
 
 void
 tw_kp_rollback_event(tw_event * event)
@@ -126,8 +127,11 @@ tw_kp_rollback_event(tw_event * event)
 	e = tw_eventq_shift(&kp->pevent_q);
         while(e != event)
 	{
-                // kp->last_time = kp->pevent_q.head->recv_ts;
+#ifdef USE_RAND_TIEBREAKER
                 kp->last_sig = kp->pevent_q.head->sig;
+#else
+                kp->last_time = kp->pevent_q.head->recv_ts;
+#endif
 		tw_event_rollback(e);
                 pq_start = tw_clock_read();
                 tw_pq_enqueue(pe->pq, e);
@@ -138,14 +142,17 @@ tw_kp_rollback_event(tw_event * event)
 
         tw_event_rollback(e);
 
-        if (0 == kp->pevent_q.size) {
-                // kp->last_time = kp->pe->GVT;
+#ifdef USE_RAND_TIEBREAKER
+        if (0 == kp->pevent_q.size)
                 kp->last_sig = kp->pe->GVT_sig;
-        }
-        else {
-                // kp->last_time = kp->pevent_q.head->recv_ts;
+        else
                 kp->last_sig = kp->pevent_q.head->sig;
-        }
+#else
+        if (0 == kp->pevent_q.size)
+                kp->last_time = kp->pe->GVT;
+        else
+                kp->last_time = kp->pevent_q.head->recv_ts;
+#endif
 }
 
 #ifndef NUM_OUT_MESG

@@ -45,8 +45,9 @@ avlSearch(AvlTree t, tw_event *key)
 
     if (TW_STIME_CMP(key->recv_ts, t->key->recv_ts) == 0) {
         // Timestamp is the same
+#ifdef USE_RAND_TIEBREAKER
         if (key->event_tiebreaker == t->key->event_tiebreaker) {
-            
+#endif
             if (key->event_id == t->key->event_id) {
                 // Event ID is the same
                 if (key->send_pe == t->key->send_pe) {
@@ -62,10 +63,12 @@ avlSearch(AvlTree t, tw_event *key)
                 // Event ID is different
                 return avlSearch(t->child[key->event_id > t->key->event_id], key);
             }
+#ifdef USE_RAND_TIEBREAKER
         }
         else {
             return avlSearch(t->child[key->event_tiebreaker > t->key->event_tiebreaker], key);
         }
+#endif
     }
     else {
         // Timestamp is different
@@ -190,9 +193,11 @@ avlInsert(AvlTree *t, tw_event *key)
     }
 
     if (TW_STIME_CMP(key->recv_ts, (*t)->key->recv_ts) == 0) {
+#ifdef USE_RAND_TIEBREAKER
         // We have a timestamp tie, check the event tiebreaker
         if (key->event_tiebreaker == (*t)->key->event_tiebreaker) {
             // we have an event tiebreaker tie, check the event ID (because it's different versions of same event)
+#endif
             if (key->event_id == (*t)->key->event_id) {
                 // We have a event ID tie, check the send_pe
                 if (key->send_pe == (*t)->key->send_pe) {
@@ -207,12 +212,14 @@ avlInsert(AvlTree *t, tw_event *key)
                 avlInsert(&(*t)->child[key->event_id > (*t)->key->event_id], key);
                 avlRebalance(t);
             }
+#ifdef USE_RAND_TIEBREAKER
         }
         else {
             // event tiebreakers are different
             avlInsert(&(*t)->child[key->event_tiebreaker > (*t)->key->event_tiebreaker], key);
             avlRebalance(t);
         }
+#endif
     }
     else {
         // Timestamps are different
@@ -272,9 +279,11 @@ avlDelete(AvlTree *t, tw_event *key)
     }
 
     if (TW_STIME_CMP(key->recv_ts, (*t)->key->recv_ts) == 0) {
+#ifdef USE_RAND_TIEBREAKER
         // We have a timestamp tie, check the event tiebreaker
         if (key->event_tiebreaker == (*t)->key->event_tiebreaker) {
             //we have an event tiebreaker tie, (same event but different version)
+#endif
             if (key->event_id == (*t)->key->event_id) {
                 // We have a event ID tie, check the send_pe
                 if (key->send_pe == (*t)->key->send_pe) {
@@ -302,11 +311,13 @@ avlDelete(AvlTree *t, tw_event *key)
                 // Timestamps are the same but event IDs differ
                 target = avlDelete(&(*t)->child[key->event_id > (*t)->key->event_id], key);
             }
+#ifdef USE_RAND_TIEBREAKER
         }
         else {
             // event tiebreakers are different
             target = avlDelete(&(*t)->child[key->event_tiebreaker > (*t)->key->event_tiebreaker], key);
         }
+    #endif
     }
     else {
         // Timestamps are different
