@@ -34,6 +34,7 @@ tw_kp_rollback_to_sig(tw_kp * kp, tw_event_sig to_sig)
     {
         e = tw_eventq_shift(&kp->pevent_q);
 
+        // printf("Rolling back %d (%.4f,%.4f)\n",e->event_id, e->sig.recv_ts, e->sig.event_tiebreaker);
         // rollback first
         tw_event_rollback(e);
 

@@ -20,6 +20,8 @@ typedef struct tw_kp tw_kp;
 typedef struct tw_pe tw_pe;
 typedef struct avlNode *AvlTree;
 
+#define MAX_TIE_CHAIN 50
+
 /**
  * Synchronization protocol used
  */
@@ -241,32 +243,67 @@ typedef struct tw_out {
 } tw_out;
 
 #ifdef USE_RAND_TIEBREAKER
-typedef struct tw_event_sig {
-    tw_stime recv_ts;
-    tw_stime event_tiebreaker;
-} tw_event_sig;
+typedef struct tw_causal_origin {
+    tw_peid pe_id;
+    tw_eventid event_id;
+} tw_unique_event_id;
 
-//compares the 'new' event to the signature. If the new event is to occur
-//n_sig later (larger) than e_sig signature, return -1
-//n_sig before (smaller) than e_sig signature, return 1
-//at the signature - return 0
-static inline int tw_event_sig_compare(tw_event_sig e_sig, tw_event_sig n_sig)
+// static inline int tw_unique_event_id_is_unset(tw_unique_event_id e)
+// {
+//     if (e.pe_id == INT_MAX)
+//         return 1;
+//     else
+//         return 0;
+// }
+
+static inline int tw_unique_event_id_eq(tw_unique_event_id e, tw_unique_event_id n)
 {
-    int time_compare = TW_STIME_CMP(e_sig.recv_ts, n_sig.recv_ts);
-    if (time_compare != 0)
-        return time_compare;
-    else
+    // if (tw_unique_event_id_is_unset(e) && tw_unique_event_id_is_unset(n))
+    //     return 1;
+    // if (tw_unique_event_id_is_unset(e) || tw_unique_event_id_is_unset(n))
+        // return 0; // if the IDs are uninitialized, then this isn't a valid match
+    if (e.pe_id == n.pe_id)
     {
-        if (e_sig.event_tiebreaker < n_sig.event_tiebreaker)
-            return -1;
-        else if (e_sig.event_tiebreaker > n_sig.event_tiebreaker)
+        if (e.event_id == n.event_id)
+        {
             return 1;
-        else {
-                // tw_error(TW_LOC,"Identical events (matching tiebreaker) found\n");
-                return 0;
         }
     }
+    return 0;
 }
+
+
+
+typedef struct tw_event_sig {
+    tw_stime recv_ts;
+    tw_stime event_tiebreaker[MAX_TIE_CHAIN];
+    // tw_stime causal_ordering_value; //additive tiebreaker in the case of zero offset events
+    // tw_unique_event_id causal_origin;
+    // tw_unique_event_id tie_causal_lineage[50];
+    unsigned int tie_lineage_length;
+    // unsigned int is_origin_set;
+} tw_event_sig;
+
+static void print_sig(tw_event_sig sig, char end)
+{
+    printf("recv=%.4f lin_len=%d  tiebreakers=",sig.recv_ts,sig.tie_lineage_length);
+    for(int i = 0; i < sig.tie_lineage_length; i++)
+    {
+        printf("%.2f ", sig.event_tiebreaker[i]);
+    }
+    printf("%c",end);
+}
+
+static inline tw_event_sig tw_get_init_sig(tw_stime recv_ts, tw_stime event_tiebreaker)
+{
+    tw_event_sig e;
+    memset(&e, 0, sizeof(tw_event_sig));
+    e.recv_ts = recv_ts;
+    memset(e.event_tiebreaker, event_tiebreaker, MAX_TIE_CHAIN);
+    // e.event_tiebreaker = event_tiebreaker;
+    return e;
+}
+
 #endif
 
 /**
@@ -293,7 +330,8 @@ struct tw_event {
     tw_eventid   event_id;          /**< @brief Unique id assigned by src_lp->pe if remote. */
 
 #ifdef USE_RAND_TIEBREAKER
-    tw_stime     event_tiebreaker;  /**< @brief Random value used to deterministically resolve event ties */
+    // tw_stime     event_tiebreaker;  /**< @brief Random value used to deterministically resolve event ties */
+    // tw_stime     causal_ordering_value; /**< @brief Random value used to deterministically resolve event ties but maintain causality given zero-offset*/
     tw_event_sig sig;
 #endif
 
@@ -476,5 +514,105 @@ struct tw_pe {
 
     tw_rng  *rng; /**< @brief Pointer to the random number generator on this PE */
 };
+
+#ifdef USE_RAND_TIEBREAKER
+// static inline int tw_unique_event_id_is_set(tw_event *e)
+// {
+//     return e->sig.is_origin_set;
+//     // if (e.pe_id == INT_MAX)
+//     //     return 1;
+//     // else
+//     //     return 0;
+// }
+
+// static inline int event_is_causal_related(tw_event_sig e_sig , tw_event_sig n_sig)
+// {
+//     if (!tw_unique_event_id_eq(e_sig.tie_causal_lineage[0] ,n_sig.tie_causal_lineage[0]))
+//     {
+//         if (!tw_unique_event_id_eq(e_sig.tie_causal_lineage[0], e_sig.causal_origin))
+//             printf("These should be equal (%lu %u) (%lu %u)\n", e_sig.tie_causal_lineage[0].pe_id, e_sig.tie_causal_lineage[0].event_id, e_sig.causal_origin.pe_id, e_sig.causal_origin.event_id);
+//         printf("UNCORRELATED (%lu %u)  (%lu %u)\n", e_sig.tie_causal_lineage[0].pe_id, e_sig.tie_causal_lineage[0].event_id, n_sig.tie_causal_lineage[0].pe_id, n_sig.tie_causal_lineage[0].event_id );
+//         return 0;
+//     }
+//     return 1; //remove this eventually
+//     // printf("UN (%lu %u)  (%lu %u)\n", e_sig.tie_causal_lineage[0].pe_id, e_sig.tie_causal_lineage[0].event_id, n_sig.tie_causal_lineage[0].pe_id, n_sig.tie_causal_lineage[0].event_id );
+//     // return 0;
+
+//     int e_len = e_sig.tie_lineage_length;
+//     int n_len = n_sig.tie_lineage_length;
+//     // printf("%d %d\n", e_len, n_len);
+
+//     if (e_len < n_len)
+//     {
+//         if (tw_unique_event_id_eq(e_sig.tie_causal_lineage[e_len], n_sig.tie_causal_lineage[e_len]))
+//             return 1;
+//     }
+//     else if (n_len < e_len)
+//     {
+//         if (tw_unique_event_id_eq(e_sig.tie_causal_lineage[n_len], n_sig.tie_causal_lineage[n_len]))
+//             return 1;
+//     }
+
+//     return 0; //siblings or cousins
+// }
+
+static inline int min_int(int x, int y) 
+{ 
+  return (x < y) ? x : y;
+} 
+
+//compares the 'new' event to the signature. If the new event is to occur
+//n_sig later (larger) than e_sig signature, return -1
+//n_sig before (smaller) than e_sig signature, return 1
+//at the signature - return 0
+static inline int tw_event_sig_compare(tw_event_sig e_sig, tw_event_sig n_sig)
+{
+    // print_sig(e_sig,' ');
+    // print_sig(n_sig,'\n');
+    int time_compare = TW_STIME_CMP(e_sig.recv_ts, n_sig.recv_ts);
+    if (time_compare != 0)
+        return time_compare;
+    else {
+        int min_len = min_int(e_sig.tie_lineage_length, n_sig.tie_lineage_length);
+        int j = 0;
+        for(int i = 0; i < min_len; i++)
+        {
+            j = i;
+            if (e_sig.event_tiebreaker[i] < n_sig.event_tiebreaker[i])
+                return -1;
+            else if (e_sig.event_tiebreaker[i] > n_sig.event_tiebreaker[i])
+                return 1;
+        }
+        if (e_sig.tie_lineage_length == n_sig.tie_lineage_length) //total tie
+            return 0;
+        else if (e_sig.tie_lineage_length > n_sig.tie_lineage_length) //give priority to one with shorter lineage
+            return 1;
+        else
+            return -1;
+    }
+    // else
+    // {
+    //     if (tw_unique_event_id_eq(e_sig.causal_origin, n_sig.causal_origin))
+    //     // if (event_is_causal_related(e_sig, n_sig))
+    //     {
+    //         if (e_sig.causal_ordering_value < n_sig.causal_ordering_value)
+    //             return -1;
+    //         else if (e_sig.causal_ordering_value > n_sig.causal_ordering_value)
+    //             return 1;
+    //         else
+    //             return 0;
+    //     }
+    //     else {
+    //         printf("using absolute (%.4f %lu %u) != (%.4f  %lu %u)\n", e_sig.event_tiebreaker, e_sig.causal_origin.pe_id, e_sig.causal_origin.event_id, n_sig.event_tiebreaker,n_sig.causal_origin.pe_id, n_sig.causal_origin.event_id);
+    //         if (e_sig.event_tiebreaker < n_sig.event_tiebreaker)
+    //             return -1;
+    //         else if (e_sig.event_tiebreaker > n_sig.event_tiebreaker)
+    //             return 1;
+    //         else
+    //             return 0;
+    //     }
+    // }
+}
+#endif
 
 #endif

@@ -58,6 +58,9 @@ extern tw_peid g_tw_masternode;
 
 extern FILE *g_tw_csv;
 
+// extern MPI_Op MPI_sig_min;
+// extern MPI_Datatype MPI_ESIG;
+
 extern tw_lptype * g_tw_lp_types;
 extern tw_typemap_f g_tw_lp_typemap;
 

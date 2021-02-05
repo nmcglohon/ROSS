@@ -90,8 +90,48 @@ tw_event_new(tw_lpid dest_gid, tw_stime offset_ts, tw_lp * sender)
   e->critical_path = sender->critical_path + 1;
 
 #ifdef USE_RAND_TIEBREAKER
-  e->event_tiebreaker = tw_rand_unif(sender->core_rng); //create a random number used to deterministically break event ties, this is rolled back in tw_event_rollback() during the sender LP cancel loop
-  e->sig = (tw_event_sig){e->recv_ts, e->event_tiebreaker};
+tw_event *now_event = sender->kp->pe->cur_event;
+tw_stime u_rand_val = tw_rand_unif(sender->core_rng); //create a random number used to deterministically break event ties, this is rolled back in tw_event_rollback() during the sender LP cancel loop
+// memset(&e->sig, 0, sizeof (tw_event_sig));
+e->sig.recv_ts = recv_ts;
+// e->sig.event_tiebreaker = u_rand_val;
+// e->sig = (tw_event_sig){recv_ts, u_rand_val, 0, (tw_unique_event_id){INT_MAX,0}};
+// e->sig.is_origin_set = 0;
+if (offset_ts == 0) {
+  // if (tw_unique_event_id_is_unset(now_event->sig.causal_origin)) { //then the now event is the origin of this zero offset causal chain
+    // printf("first in chain (%lu,%u) should be uninit\n", now_event->sig.causal_origin.pe_id, now_event->sig.causal_origin.event_id);
+    // e->sig.causal_origin = (tw_unique_event_id){now_event->send_pe, now_event->event_id};
+  // }
+  // else {
+    // printf("causal ordering  (%lu,%u)!\n", now_event->sig.causal_origin.pe_id, now_event->sig.causal_origin.event_id);
+    // e->sig.causal_origin = now_event->sig.causal_origin;
+    // e->sig.is_origin_set = 1;
+  // }
+  memcpy(e->sig.event_tiebreaker, now_event->sig.event_tiebreaker, sizeof(tw_stime)*(now_event->sig.tie_lineage_length));
+  e->sig.event_tiebreaker[now_event->sig.tie_lineage_length] = u_rand_val;
+  // e->sig.causal_ordering_value = now_event->sig.causal_ordering_value + u_rand_val;
+  e->sig.tie_lineage_length = now_event->sig.tie_lineage_length + 1;
+  // memcpy(&(e->sig.tie_causal_lineage), &(now_event->sig.tie_causal_lineage), sizeof(tw_unique_event_id)*now_event->sig.tie_lineage_length);
+  // printf("causal order val %.4f\n", e->sig.causal_ordering_value);
+}
+else {
+  // e->sig.event_tiebreaker = u_rand_val;
+  // e->sig.causal_ordering_value = u_rand_val;
+  e->sig.event_tiebreaker[0] = u_rand_val;
+  e->sig.tie_lineage_length = 1;
+}
+
+// tw_event *now_event = sender->kp->pe->cur_event;
+// tw_stime u_rand_val = tw_rand_unif(sender->core_rng);
+// if (offset_ts == 0) {
+//   printf("Encoding Additive\n");
+//   e->sig = (tw_event_sig){recv_ts, now_event->sig.event_tiebreaker + u_rand_val};
+// }
+// else {
+//   printf("Encoding Absolute %d\n",abs_counter);
+//   e->sig = (tw_event_sig){recv_ts, u_rand_val};
+//   abs_counter++;
+// }
 #endif
 
   tw_free_output_messages(e, 0);

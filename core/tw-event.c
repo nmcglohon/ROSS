@@ -33,6 +33,27 @@ void tw_event_send(tw_event * event) {
      // moved from network-mpi.c in order to give all events a seq_num
 	event->event_id = (tw_eventid) ++send_pe->seq_num;
 
+    // printf("%d\n", event->sig.tie_lineage_length);
+    // (event->sig).tie_causal_lineage[event->sig.tie_lineage_length] = (tw_unique_event_id){send_pe->id, event->event_id};
+    // event->sig.tie_lineage_length++;
+
+// #ifdef USE_RAND_TIEBREAKER
+    // if ((TW_STIME_DBL(recv_ts) - TW_STIME_DBL(tw_now(src_lp))) > 0) { //we're in init
+    // if (abs(TW_STIME_DBL(recv_ts) - TW_STIME_DBL(tw_now(src_lp))) > 0.0) {
+        // event->sig.causal_origin = (tw_unique_event_id){send_pe->id, event->event_id};
+    // }
+    // printf("causal ordering  (%lu,%u) -> (%lu,%u)!\n", event->sig.causal_origin.pe_id, event->sig.causal_origin.event_id, send_pe->id, event->event_id);
+// #endif
+    // events_created++;
+    // printf("%d\n", events_created);
+    // tw_event_sig s = tw_now_sig(src_lp);
+    // printf("NOW: %d(%.4f, %.4f, %.4f {%lu, %u}),   NEW %d(%.4f, %.4f, %.4f {%lu,%u})\n", src_lp->id, s.recv_ts, s.event_tiebreaker, s.causal_ordering_value, s.causal_origin.pe_id, s.causal_origin.event_id, event->dest_lp, event->sig.recv_ts,  event->sig.event_tiebreaker, event->sig.causal_ordering_value, event->sig.causal_origin.pe_id, event->sig.causal_origin.event_id);
+    // if (tw_event_sig_compare(event->sig, tw_now_sig(src_lp)) < 0) {
+    //     printf("BACK TIME EVENT!\n");
+    // }
+    // if (event->event_id == 15)
+    //     tw_error(TW_LOC, "Stop\n");
+
     // call LP remote mapping function to get dest_pe
     dest_peid = (*src_lp->type->map) ((tw_lpid) event->dest_lp);
     event->send_lp = src_lp->gid;

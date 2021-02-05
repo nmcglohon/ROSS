@@ -75,6 +75,10 @@ tw_net_init(int *argc, char ***argv)
   g_tw_masternode = 0;
   g_tw_mynode = my_rank;
 
+  // MPI_Op_create(&mpi_sig_min_exec, 1, &MPI_sig_min);
+	// MPI_Type_contiguous(2, MPI_DOUBLE, &MPI_ESIG);
+	// MPI_Type_commit(&MPI_ESIG);
+
   return mpi_opts;
 }
 
@@ -164,6 +168,8 @@ tw_net_abort(void)
 void
 tw_net_stop(void)
 {
+  // MPI_Op_free(&MPI_sig_min);
+  // MPI_Type_free(&MPI_ESIG); 
 #ifdef USE_DAMARIS
     if (g_st_damaris_enabled)
         st_damaris_ross_finalize();
@@ -215,8 +221,9 @@ tw_net_minimum(void)
 #ifdef USE_RAND_TIEBREAKER
 tw_event_sig
 tw_net_minimum_sig(void)
-{
-    tw_event_sig m = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
+{  
+    // tw_event_sig m = (tw_event_sig){TW_STIME_MAX, TW_STIME_MAX};
+    tw_event_sig m = tw_get_init_sig(TW_STIME_MAX, TW_STIME_MAX);
     tw_event *e;
     unsigned int i;
 

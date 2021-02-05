@@ -92,6 +92,8 @@ tw_peid		g_tw_masternode = 0;
 
 FILE		*g_tw_csv = NULL;
 
+// MPI_Op MPI_sig_min;
+// MPI_Datatype MPI_ESIG;
 
 /*
  *

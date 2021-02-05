@@ -1,6 +1,18 @@
 #ifndef INC_ross_gvt_h
 #define INC_ross_gvt_h
 
+// static void mpi_sig_min_exec( void *invec, void *inoutvec, int *len, MPI_Datatype *datatype)
+// {
+// 	tw_event_sig* input = (tw_event_sig*)invec;
+// 	tw_event_sig* output = (tw_event_sig*)inoutvec;
+// 	for (int i = 0; i < *len; i++)
+// 	{
+// 		if (tw_event_sig_compare(input[i],output[i]) < 0)
+// 			output[i] = input[i];
+// 	}
+// 	return;
+// }
+
 /*
  * Initialize the GVT library and parse options.
  */
